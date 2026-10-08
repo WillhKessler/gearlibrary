@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>North Cascades Bikepacking Gear Library</title>
+<title>Ridgeline Gear Library</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,800&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
@@ -111,8 +111,8 @@ code{font-size:.85em;background:var(--panel);padding:1px 5px;border-radius:3px}
 <body>
 <header><div class="wrap">
   <div class="top">
-    <h1 class="brand">North Cascades<span>Gear Library</span></h1>
-    <p class="intro">Borrow bikepacking gear for an hour, a day, a week, or longer. Build your loadout, check the weight, then send a reservation request. Library loans are free and open to everyone. </p>
+    <h1 class="brand">Ridgeline<span>Gear Library</span></h1>
+    <p class="intro">Borrow bikepacking gear for a week, free for members. Build a loadout, check the weight, then send a reservation request.</p>
   </div>
   <div class="stats" id="stats" aria-live="polite"></div>
 </div></header>
@@ -165,27 +165,27 @@ code{font-size:.85em;background:var(--panel);padding:1px 5px;border-radius:3px}
 // ---- Configuration: change these for your repo ----
 // Primary source: a Google Sheet. Share it as "Anyone with the link can view", then paste its ID
 // (the long string in the sheet URL between /d/ and /edit) and the name of the tab to read.
-const SHEET_ID  = "1oEgN2sb9GXCfPA3CekSbCLOMXHhFhyfJ8UDudxoBPEI";                      // e.g. "1AbC...xyz"
+const SHEET_ID  = "";                      // e.g. "1AbC...xyz"
 const SHEET_TAB = "Gear";                  // tab name
 // Optional: instead of the two lines above, use File > Share > Publish to web > CSV and paste that link here.
-const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQpI0C1iVCs4YuvRtEBJ_kIGRfEdMfB5aRvPxtHjFnYi5CKK9oZcpRodxP42O-T2EPEPoGVgxy_-Et0/pub?gid=0&single=true&output=csv";
+const SHEET_CSV_URL = "";
 // Backup source if the Google Sheet is unset or unreachable: an .xlsx file in this repo.
-const XLSX_PATH = "gearspreadsheet.xlsx";
+const XLSX_PATH = "gear.xlsx";
 // Requests are submitted straight to a Google Form from the loadout panel. Set it up like this:
 // 1. Create the form with these questions: name (short answer), email (short answer), pickup date and return date
 //    (Date type), notes (paragraph), items (paragraph), total weight (short answer). Leave out any you don't want.
 // 2. Form settings: do NOT require sign-in, do NOT limit to one response, no file uploads.
 // 3. Three-dot menu > "Get pre-filled link": type any text in every question, click "Get link", copy it.
 // 4. FORM_URL is that link up to the "?". Each entry.NNNNNNN in it is a question ID; match them to the keys below.
-const FORM_URL = "https://docs.google.com/forms/d/e/1FAIpQLSdLaaAPUUULcrH_PYgf27nW-2nnlNACTBCneg5qE-EfBOqf_Q/viewform";                       // e.g. "https://docs.google.com/forms/d/e/1FAIpQLS.../viewform"
+const FORM_URL = "";                       // e.g. "https://docs.google.com/forms/d/e/1FAIpQLS.../viewform"
 const FORM_ENTRIES = {                     // fill in the IDs you have; blank ones are skipped
-  name:   "entry.144521721",                              // e.g. "entry.1111111111"
-  email:  "entry.245949958",
-  pickup: "entry.2136646118",                              // Date question
-  ret:    "entry.1132304307",                              // Date question (return date)
-  notes:  "entry.2141839821",
-  items:  "entry.2061083159",
-  weight: "entry.2038391140"
+  name:   "",                              // e.g. "entry.1111111111"
+  email:  "",
+  pickup: "",                              // Date question
+  ret:    "",                              // Date question (return date)
+  notes:  "",
+  items:  "",
+  weight: ""
 };
 const PH = "data:image/svg+xml," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 60"><rect width="80" height="60" fill="#c5cfc9"/><path d="M0 50l22-26 14 16 10-12 34 22z" fill="#9fb0a8"/><circle cx="60" cy="16" r="6" fill="#e8edea"/></svg>');
 
@@ -242,14 +242,16 @@ function normalize(rows){
   }).filter(x=>x.item);
 }
 async function fromSheet(){
-  const url = SHEET_CSV_URL || (SHEET_ID && `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(SHEET_TAB)}`);
+  const url = SHEET_CSV_URL || (SHEET_ID && `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&headers=1&sheet=${encodeURIComponent(SHEET_TAB)}`);
   if(!url) throw new Error("no sheet configured");
-  const res = await fetch(url, {cache:"no-cache"});
-  if(!res.ok) throw new Error(res.status);
+  const res = await fetch(url);   // no custom fetch options: they can trigger a CORS preflight that Google rejects
+  if(!res.ok) throw new Error("HTTP "+res.status);
   const text = await res.text();
   if(/^\s*<(!doctype|html)/i.test(text)) throw new Error("sheet is not shared publicly");
   const wb = XLSX.read(text, {type:"string", raw:true});
-  return normalize(XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], {raw:true, defval:""}));
+  const rows = normalize(XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], {raw:true, defval:""}));
+  if(!rows.length) throw new Error("the sheet loaded but no rows have an Item column; check the headers in row 1 and the tab name");
+  return rows;
 }
 async function fromXlsx(){
   const res = await fetch(XLSX_PATH, {cache:"no-cache"});
@@ -260,6 +262,7 @@ async function fromXlsx(){
 async function load(){
   try{ state.items = await fromSheet(); state.source = "sheet"; }
   catch(e1){
+    state.err = /failed to fetch|networkerror|load failed/i.test(e1.message) ? "the browser could not reach it (wrong sheet ID, sheet not shared as Anyone with the link, or blocked by CORS)" : e1.message;
     try{ state.items = await fromXlsx(); state.source = "xlsx"; }
     catch(e2){ state.items = normalize(SAMPLE); state.source = "sample"; }
   }
@@ -286,8 +289,8 @@ function render(){
   const all = state.items, list = visible();
   $("stats").innerHTML = `<div><b>${all.length}</b>items in the library</div><div><b>${all.filter(i=>i.avail).length}</b>available now</div><div><b>${new Set(all.map(i=>i.cat)).size}</b>categories</div>`;
   $("source").innerHTML = state.source==="sheet" ? `<span class="dot"></span>Loaded live from Google Sheets`
-    : state.source==="xlsx" ? `<span class="dot"></span>Loaded from ${esc(XLSX_PATH)} (Google Sheet not set up or not reachable)`
-    : `<span class="dot warn"></span>Showing sample data. Set SHEET_ID in the page script and share the sheet as "Anyone with the link can view" to load your own catalog. Photos show a placeholder until image files exist.`;
+    : state.source==="xlsx" ? `<span class="dot"></span>Loaded from ${esc(XLSX_PATH)} (Google Sheet problem: ${esc(state.err||"not set up")})`
+    : `<span class="dot warn"></span>Showing sample data. ${state.err?`Google Sheet problem: ${esc(state.err)}.`:"Set SHEET_ID in the page script and share the sheet as Anyone with the link can view."} Photos show a placeholder until image files exist.`;
   const rows = list.map(i=>{
     const on = state.loadout.has(i.id), open = state.open.has(i.id);
     const spec = [["Type",i.type],["Brand",i.brand],["Model",i.model],["Fitment",i.fit],["Dimensions",i.dims],["Condition",i.cond],["Notes",i.notes]]
