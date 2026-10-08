@@ -85,7 +85,6 @@ aside h2{font:800 1.4rem/1 var(--display);margin:0 0 4px}
 .tray li{display:flex;justify-content:space-between;gap:8px;padding:6px 0;border-bottom:1px dashed var(--line)}
 .tray button{all:unset;cursor:pointer;color:var(--muted);padding:0 4px}
 .tray button:hover{color:var(--out)}
-.total{font:800 2.4rem/1 var(--display);font-variant-numeric:tabular-nums}
 .bar{height:12px;background:var(--fog);border:1.5px solid var(--line);border-radius:6px;overflow:hidden;margin:10px 0 6px}
 .bar i{display:block;height:100%;width:0;background:var(--spruce);transition:width .25s}
 .bar.over i{background:var(--out)}
@@ -140,9 +139,6 @@ code{font-size:.85em;background:var(--panel);padding:1px 5px;border-radius:3px}
     <h2>Your loadout</h2>
     <div class="sub" id="count">Nothing added yet</div>
     <ul class="tray" id="tray"></ul>
-    <div class="total" id="total">0 g</div>
-    <div class="bar" id="bar" role="img" aria-label="Weight against your limit"><i></i></div>
-    <label class="limit">Weight limit <input type="number" id="limit" value="6000" min="500" step="250"> g</label>
     <form class="req" id="req">
       <label>Your name<input id="f-name" required autocomplete="name"></label>
       <label>Email<input id="f-email" type="email" required autocomplete="email"></label>
@@ -184,8 +180,7 @@ const FORM_ENTRIES = {                     // fill in the IDs you have; blank on
   pickup: "entry.2136646118",                              // Date question
   ret:    "entry.1132304307",                              // Date question (return date)
   notes:  "entry.2141839821",
-  items:  "entry.2061083159",
-  weight: "entry.2038391140"
+  items:  "entry.2061083159"
 };
 const PH = "data:image/svg+xml," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 60"><rect width="80" height="60" fill="#c5cfc9"/><path d="M0 50l22-26 14 16 10-12 34 22z" fill="#9fb0a8"/><circle cx="60" cy="16" r="6" fill="#e8edea"/></svg>');
 
@@ -314,13 +309,8 @@ function render(){
 }
 function renderLoadout(){
   const picked = state.items.filter(i=>state.loadout.has(i.id));
-  const total = picked.reduce((n,i)=>n+i.weight,0);
-  const limit = Number($("limit").value)||1;
   $("count").textContent = picked.length ? `${picked.length} item${picked.length>1?"s":""}` : "Nothing added yet";
-  $("tray").innerHTML = picked.map(i=>`<li><span>${esc(i.item)}</span><span>${i.weight} g <button data-rm="${esc(i.id)}" aria-label="Remove ${esc(i.item)}">✕</button></span></li>`).join("");
-  $("total").textContent = total.toLocaleString()+" g";
-  $("bar").classList.toggle("over", total>limit);
-  $("bar").firstElementChild.style.width = Math.min(100,total/limit*100)+"%";
+  $("tray").innerHTML = picked.map(i=>`<li><span>${esc(i.item)}</span><button data-rm="${esc(i.id)}" aria-label="Remove ${esc(i.item)}">✕</button></li>`).join("");
   $("send").disabled = !picked.length;
 }
 const flip = (set,id) => set.has(id) ? set.delete(id) : set.add(id);
@@ -329,7 +319,6 @@ $("q").addEventListener("input",e=>{state.q=e.target.value;render()});
 $("sort").addEventListener("change",e=>{state.sort=e.target.value;render()});
 $("sub").addEventListener("change",e=>{state.sub=e.target.value;render()});
 $("avail").addEventListener("change",e=>{state.avail=e.target.checked;render()});
-$("limit").addEventListener("input",renderLoadout);
 $("chips").addEventListener("click",e=>{const b=e.target.closest("[data-cat]"); if(!b)return; state.cat=b.dataset.cat; state.sub=""; buildFilters(); render();});
 $("rows").addEventListener("click",e=>{
   const add=e.target.closest("[data-id]"), op=e.target.closest("[data-open]"), sw=e.target.closest("[data-swap]");
@@ -349,8 +338,7 @@ function formPayload(picked, iso){
   put("name",$("f-name").value.trim()); put("email",$("f-email").value.trim());
   date("pickup",$("f-pickup").value); date("ret",$("f-return").value);
   put("notes",$("f-notes").value.trim());
-  put("items",picked.map(i=>`${i.id}: ${i.item} (${i.weight} g)`).join("\n"));
-  put("weight",picked.reduce((n,i)=>n+i.weight,0)+" g");
+  put("items",picked.map(i=>`${i.id}: ${i.item}`).join("\n"));
   return d;
 }
 $("req").addEventListener("submit", async e=>{
