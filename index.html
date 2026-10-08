@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ridgeline Gear Library</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,800&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root{
+  --fog:#e8edea; --panel:#f7f9f7; --ink:#15231e; --muted:#5b6b64; --line:#c5cfc9;
+  --spruce:#2a5a4c; --spruce-ink:#fff; --tape:#f1c232; --tape-ink:#15231e; --out:#a5412f;
+  --display:"Bricolage Grotesque","Arial Narrow",Arial,sans-serif;
+  --body:"Instrument Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){--fog:#101a16;--panel:#18251f;--ink:#e8efeb;--muted:#9fb0a8;--line:#2f4139;--spruce:#6fb59f;--spruce-ink:#0e1815;--out:#e48a76}
+}
+:root[data-theme="dark"]{--fog:#101a16;--panel:#18251f;--ink:#e8efeb;--muted:#9fb0a8;--line:#2f4139;--spruce:#6fb59f;--spruce-ink:#0e1815;--out:#e48a76}
+*{box-sizing:border-box}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--fog);color:var(--ink);font:400 16px/1.5 var(--body);padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+a{color:inherit}
+:focus-visible{outline:3px solid var(--tape);outline-offset:2px}
+.wrap{max-width:1180px;margin:0 auto;padding:0 20px}
+header{padding:36px 0 22px;border-bottom:2px solid var(--ink)}
+.top{display:flex;justify-content:space-between;align-items:baseline;gap:16px;flex-wrap:wrap}
+.brand{font:800 clamp(2.4rem,7vw,4.6rem)/.92 var(--display);letter-spacing:-.03em;margin:0}
+.brand span{display:block;font-weight:500;color:var(--spruce)}
+.intro{max-width:46ch;margin:0;color:var(--muted)}
+.stats{display:flex;gap:28px;margin-top:22px;flex-wrap:wrap}
+.stats div{font-size:.9rem;color:var(--muted)}
+.stats b{display:block;font:800 1.7rem/1 var(--display);color:var(--ink)}
+main{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:28px;padding:24px 0 60px;align-items:start}
+.controls{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:14px}
+input[type=search],select,.limit input{font:inherit;color:var(--ink);background:var(--panel);border:1.5px solid var(--line);border-radius:6px;padding:9px 12px}
+input[type=search]{flex:1 1 220px;min-width:0}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px}
+.chip{font:500 .88rem var(--body);color:var(--ink);background:transparent;border:1.5px solid var(--line);border-radius:999px;padding:5px 13px;cursor:pointer}
+.chip[aria-pressed=true]{background:var(--ink);color:var(--fog);border-color:var(--ink)}
+.toggle{display:flex;align-items:center;gap:7px;font-size:.92rem;cursor:pointer}
+.source{font-size:.82rem;color:var(--muted);margin:0 0 10px;display:flex;gap:8px;align-items:center}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--spruce);flex:none}
+.dot.warn{background:var(--tape)}
+.rows{list-style:none;margin:0;padding:0;border-top:1.5px solid var(--ink)}
+.row{display:grid;grid-template-columns:56px minmax(0,2.3fr) 1.3fr 84px 112px 104px;gap:12px;align-items:center;padding:12px 4px}
+.item{border-bottom:1px solid var(--line)}
+button:focus-visible{outline:3px solid var(--tape);outline-offset:2px}
+.row.head{font-size:.82rem;color:var(--muted);padding:8px 4px;cursor:default;border-bottom:1px solid var(--line)}
+.row.head button{all:unset;cursor:pointer}
+.row.head button:hover{color:var(--ink)}
+.name{all:unset;font-weight:600;cursor:pointer;display:block}
+.name:hover{text-decoration:underline}
+.name::after{content:" +";color:var(--muted);font-weight:400}
+.name[aria-expanded=true]::after{content:" \2212"}
+.thumb{width:56px;height:56px;border-radius:6px;object-fit:cover;background:var(--panel);border:1px solid var(--line);display:block}
+.sub{font-size:.85rem;color:var(--muted)}
+.num{font:800 1.05rem var(--display);font-variant-numeric:tabular-nums}
+.num small{font:500 .8rem var(--body);color:var(--muted)}
+.pill{display:inline-block;font-size:.82rem;font-weight:600;padding:3px 10px;border-radius:4px;border:1.5px solid}
+.pill.in{color:var(--spruce);border-color:var(--spruce)}
+.pill.out{color:var(--out);border-color:var(--out)}
+.btn{font:600 .9rem var(--body);border:0;border-radius:6px;padding:8px 12px;cursor:pointer;background:var(--spruce);color:var(--spruce-ink);width:100%}
+.btn:disabled{background:transparent;color:var(--muted);border:1.5px dashed var(--line);cursor:not-allowed}
+.btn.on{background:var(--tape);color:var(--tape-ink)}
+.detail{display:grid;grid-template-columns:minmax(0,260px) minmax(0,1fr);gap:20px;padding:4px 4px 18px 68px}
+.detail[hidden]{display:none}
+.photos .main{width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:8px;border:1px solid var(--line);background:var(--panel);display:block}
+.more{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap}
+.swap{all:unset;cursor:pointer}
+.swap img{width:56px;height:42px;object-fit:cover;border-radius:4px;border:1px solid var(--line);display:block}
+.specs{display:grid;grid-template-columns:max-content 1fr;gap:6px 16px;margin:0;font-size:.92rem;align-content:start}
+.specs dt{color:var(--muted)}.specs dd{margin:0}
+.empty{padding:40px 8px;color:var(--muted)}
+aside{position:sticky;top:16px;background:var(--panel);border:1.5px solid var(--ink);border-radius:10px;padding:18px}
+aside h2{font:800 1.4rem/1 var(--display);margin:0 0 4px}
+.tray{list-style:none;margin:14px 0;padding:0;font-size:.92rem}
+.tray li{display:flex;justify-content:space-between;gap:8px;padding:6px 0;border-bottom:1px dashed var(--line)}
+.tray button{all:unset;cursor:pointer;color:var(--muted);padding:0 4px}
+.tray button:hover{color:var(--out)}
+.total{font:800 2.4rem/1 var(--display);font-variant-numeric:tabular-nums}
+.bar{height:12px;background:var(--fog);border:1.5px solid var(--line);border-radius:6px;overflow:hidden;margin:10px 0 6px}
+.bar i{display:block;height:100%;width:0;background:var(--spruce);transition:width .25s}
+.bar.over i{background:var(--out)}
+.limit{display:flex;align-items:center;gap:8px;font-size:.88rem;color:var(--muted)}
+.limit input{width:90px;padding:5px 8px}
+aside .btn{margin-top:14px;display:block;text-align:center;text-decoration:none}
+footer{border-top:1px solid var(--line);padding:20px 0 30px;font-size:.85rem;color:var(--muted)}
+code{font-size:.85em;background:var(--panel);padding:1px 5px;border-radius:3px}
+@media (max-width:900px){
+  main{grid-template-columns:1fr}
+  aside{position:static;order:-1}
+}
+@media (max-width:640px){
+  .row.head{display:none}
+  .row{grid-template-columns:56px 1fr auto;grid-template-areas:"t n w" "t c s" "b b b";gap:6px 12px}
+  .row>:nth-child(1){grid-area:t}.row>:nth-child(2){grid-area:n}.row>:nth-child(3){grid-area:c}
+  .row>:nth-child(4){grid-area:w;text-align:right}.row>:nth-child(5){grid-area:s;text-align:right}.row>:nth-child(6){grid-area:b}
+  .detail{grid-template-columns:1fr;padding-left:4px}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<header><div class="wrap">
+  <div class="top">
+    <h1 class="brand">Ridgeline<span>Gear Library</span></h1>
+    <p class="intro">Borrow bikepacking gear for a week, free for members. Build a loadout, check the weight, then send a reservation request.</p>
+  </div>
+  <div class="stats" id="stats" aria-live="polite"></div>
+</div></header>
+
+<div class="wrap"><main>
+  <section aria-label="Gear catalog">
+    <div class="controls">
+      <input type="search" id="q" placeholder="Search item, brand or notes" aria-label="Search gear">
+      <select id="sort" aria-label="Sort by">
+        <option value="item">Sort: name</option>
+        <option value="weight">Sort: lightest first</option>
+        <option value="category">Sort: category</option>
+      </select>
+      <select id="sub" aria-label="Filter by subcategory"></select>
+      <label class="toggle"><input type="checkbox" id="avail"> Available only</label>
+    </div>
+    <div class="chips" id="chips" role="group" aria-label="Filter by category"></div>
+    <p class="source" id="source"></p>
+    <ul class="rows" id="rows">
+      <li class="row head" aria-hidden="true"><span></span><span>Item</span><span>Category</span><span>Weight</span><span>Status</span><span></span></li>
+    </ul>
+  </section>
+
+  <aside aria-label="Your loadout">
+    <h2>Your loadout</h2>
+    <div class="sub" id="count">Nothing added yet</div>
+    <ul class="tray" id="tray"></ul>
+    <div class="total" id="total">0 g</div>
+    <div class="bar" id="bar" role="img" aria-label="Weight against your limit"><i></i></div>
+    <label class="limit">Weight limit <input type="number" id="limit" value="6000" min="500" step="250"> g</label>
+    <a class="btn" id="reserve" href="#" aria-disabled="true">Request these items</a>
+  </aside>
+</main></div>
+
+<footer><div class="wrap">
+  Catalog is read from <code>gear.xlsx</code> in this repository. Edit the spreadsheet, commit, and this page updates. Columns: ID, Item, Category, Subcategory, Type, Brand, Model, Fitment, Dimensions, Weight (g), Condition, Status, Due back, Notes, Photos. Photos is optional: list one or more image paths or URLs separated by commas, or name files <code>photos/ID.jpg</code>.
+</div></footer>
+
+<script>
+// ---- Configuration: change these for your repo ----
+const XLSX_PATH = "gear.xlsx";            // path to the spreadsheet, relative to this page
+const REPO = "your-org/gear-library";      // used for the reservation issue link
+const PH = "data:image/svg+xml," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 60"><rect width="80" height="60" fill="#c5cfc9"/><path d="M0 50l22-26 14 16 10-12 34 22z" fill="#9fb0a8"/><circle cx="60" cy="16" r="6" fill="#e8edea"/></svg>');
+
+// ---- Sample data (mirrors the spreadsheet columns); used when gear.xlsx can't be loaded ----
+const COLS = ["ID","Item","Category","Subcategory","Type","Brand","Model","Fitment","Dimensions","Weight (g)","Condition","Status","Due back","Notes"];
+const ROWS = [
+ ["BAG-01","Handlebar roll 15L","Bags","Handlebar bag","Roll-top","Apidura","Expedition Handlebar Pack","Drop and flat bars, 31.8 mm clamp area","Ø 20 × 46 cm",420,"Good","Available","","Harness included"],
+ ["BAG-02","Saddle pack 14L","Bags","Saddle bag","Roll-top","Revelate","Terrapin","Seatposts with 15+ cm exposed, no dropper posts","Ø 18 × 40 cm",510,"Like new","Checked out","2026-10-14","Dry bag liner included"],
+ ["BAG-03","Frame bag, medium","Bags","Frame bag","Full frame","Ortlieb","Frame-Pack","Frames 54–58 cm with two bottle bosses","52 × 14 × 9 cm",360,"Fair","Available","","Roll-top, waterproof"],
+ ["SLP-01","Ultralight tent, 1 person","Sleep system","Tent","Semi-freestanding","Big Agnes","Fly Creek HV UL1","Sleeps 1, fits a regular pad","Packed 41 × 15 cm",1050,"Good","Available","","Footprint included"],
+ ["SLP-02","Bivy sack","Sleep system","Bivy","Waterproof","Outdoor Research","Helium Bivy","Fits regular pads up to 183 cm","213 × 76 cm",480,"Good","Available","",""],
+ ["SLP-03","Down quilt, 20°F","Sleep system","Quilt","Down","Enlightened Equipment","Revelation","Fits sleepers up to 183 cm","Packed Ø 18 × 28 cm",640,"Like new","Checked out","2026-10-11",""],
+ ["SLP-04","Inflatable pad, regular","Sleep system","Sleeping pad","Insulated","Therm-a-Rest","NeoAir XLite","Regular length, fits inside the bivy","183 × 51 × 6.3 cm",440,"Good","Available","","R-value 4.2"],
+ ["KIT-01","Canister stove","Cook and water","Stove","Canister","MSR","PocketRocket 2","Threaded isobutane canisters","Packed 8 × 5 cm",73,"Good","Available","","Fuel not included"],
+ ["KIT-02","Titanium pot, 750 ml","Cook and water","Cookware","Pot","Toaks","Titanium 750","Nests a 100 g fuel canister","Ø 9 × 12 cm",103,"Good","Available","",""],
+ ["KIT-03","Gravity water filter, 2 L","Cook and water","Water filtration","Gravity","Platypus","GravityWorks 2L","Standard bottle threads","Packed 28 × 10 cm",320,"Fair","Available","",""],
+ ["NAV-01","GPS head unit","Navigation and power","GPS","Head unit","Wahoo","ELEMNT Bolt","Out-front or stem mount, 31.8 mm bars","7.1 × 4.6 cm",99,"Good","Checked out","2026-10-20","Ohio maps preloaded"],
+ ["NAV-02","Dynamo front light","Navigation and power","Lighting","Front light","Busch + Müller","IQ-X","Dynamo hub, fork eyelet mount","9 × 4 cm",150,"Good","Available","",""],
+ ["REP-01","Trail repair kit","Repair","Tools","Kit","Library","Trail kit","Tubeless tires, 2–5 mm punctures","Roll 20 × 10 cm",260,"Like new","Available","","Multitool, plugs, quick link"],
+ ["REP-02","Mini pump","Repair","Pumps","Hand pump","Lezyne","Pressure Drive","Presta and Schrader valves","Length 21 cm",130,"Good","Available","",""]
+];
+const SAMPLE = ROWS.map(r => Object.fromEntries(COLS.map((c,i)=>[c,r[i]])));
+
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const pick = (r, ...keys) => { for (const k of keys) for (const rk in r) if (rk.trim().toLowerCase() === k) return r[rk]; return ""; };
+const state = {items:[], q:"", cat:"All", sub:"", avail:false, sort:"item", loadout:new Set(), open:new Set(), source:""};
+
+function fmtDate(v){
+  if (typeof v === "number" && window.XLSX){ const d = XLSX.SSF.parse_date_code(v); if (d) return new Date(d.y,d.m-1,d.d).toLocaleDateString(undefined,{month:"short",day:"numeric"}); }
+  const d = new Date(v); return isNaN(d) ? String(v||"") : d.toLocaleDateString(undefined,{month:"short",day:"numeric"});
+}
+function normalize(rows){
+  return rows.map((r,n)=>{
+    const id = String(pick(r,"id") || "ROW-"+n);
+    let photos = String(pick(r,"photos","photo","images","image")).split(/[;,|]/).map(x=>x.trim()).filter(Boolean);
+    if (!photos.length) photos = ["photos/"+id+".jpg"];
+    return {
+      id, photos,
+      item: String(pick(r,"item","name")),
+      cat: String(pick(r,"category") || "Other"),
+      sub: String(pick(r,"subcategory")),
+      type: String(pick(r,"type")),
+      brand: String(pick(r,"brand")),
+      model: String(pick(r,"model")),
+      fit: String(pick(r,"fitment")),
+      dims: String(pick(r,"dimensions","dimension")),
+      weight: Number(pick(r,"weight (g)","weight")) || 0,
+      cond: String(pick(r,"condition")),
+      avail: /^avail/i.test(String(pick(r,"status"))),
+      due: pick(r,"due back","due"),
+      notes: String(pick(r,"notes"))
+    };
+  }).filter(x=>x.item);
+}
+async function load(){
+  try{
+    const res = await fetch(XLSX_PATH, {cache:"no-cache"});
+    if(!res.ok) throw new Error(res.status);
+    const wb = XLSX.read(await res.arrayBuffer(), {type:"array"});
+    state.items = normalize(XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]));
+    state.source = "xlsx";
+  }catch(e){
+    state.items = normalize(SAMPLE);
+    state.source = "sample";
+  }
+  buildFilters(); render();
+}
+function buildFilters(){
+  const cats = ["All", ...[...new Set(state.items.map(i=>i.cat))].sort()];
+  $("chips").innerHTML = cats.map(c=>`<button class="chip" aria-pressed="${c===state.cat}" data-cat="${esc(c)}">${esc(c)}</button>`).join("");
+  const subs = [...new Set(state.items.filter(i=>state.cat==="All"||i.cat===state.cat).map(i=>i.sub).filter(Boolean))].sort();
+  $("sub").innerHTML = `<option value="">All subcategories</option>` + subs.map(x=>`<option ${x===state.sub?"selected":""}>${esc(x)}</option>`).join("");
+}
+function visible(){
+  const q = state.q.toLowerCase();
+  const list = state.items.filter(i =>
+    (state.cat==="All" || i.cat===state.cat) &&
+    (!state.sub || i.sub===state.sub) &&
+    (!state.avail || i.avail) &&
+    (!q || [i.item,i.cat,i.sub,i.type,i.brand,i.model,i.fit,i.dims,i.notes].join(" ").toLowerCase().includes(q)));
+  const s = state.sort;
+  return list.sort((a,b)=> s==="weight" ? a.weight-b.weight : s==="category" ? a.cat.localeCompare(b.cat)||a.sub.localeCompare(b.sub)||a.item.localeCompare(b.item) : a.item.localeCompare(b.item));
+}
+function render(){
+  const all = state.items, list = visible();
+  $("stats").innerHTML = `<div><b>${all.length}</b>items in the library</div><div><b>${all.filter(i=>i.avail).length}</b>available now</div><div><b>${new Set(all.map(i=>i.cat)).size}</b>categories</div>`;
+  $("source").innerHTML = state.source==="xlsx"
+    ? `<span class="dot"></span>Loaded live from ${esc(XLSX_PATH)}`
+    : `<span class="dot warn"></span>Showing sample data. ${esc(XLSX_PATH)} wasn't found next to this page, so add it to your repo to load your own catalog. Photos fall back to a placeholder until image files exist.`;
+  const rows = list.map(i=>{
+    const on = state.loadout.has(i.id), open = state.open.has(i.id);
+    const spec = [["Type",i.type],["Brand",i.brand],["Model",i.model],["Fitment",i.fit],["Dimensions",i.dims],["Condition",i.cond],["Notes",i.notes]]
+      .filter(x=>x[1]).map(x=>`<dt>${x[0]}</dt><dd>${esc(x[1])}</dd>`).join("");
+    const more = i.photos.length>1 ? `<div class="more">${i.photos.map((p,n)=>`<button class="swap" data-swap="${esc(p)}" aria-label="Show photo ${n+1}"><img src="${esc(p)}" alt="" loading="lazy"></button>`).join("")}</div>` : "";
+    return `<li class="item"><div class="row">
+      <img class="thumb" src="${esc(i.photos[0])}" alt="" loading="lazy">
+      <div><button class="name" data-open="${esc(i.id)}" aria-expanded="${open}">${esc(i.item)}</button><div class="sub">${esc([i.brand,i.model].filter(Boolean).join(" "))}</div></div>
+      <div>${esc(i.cat)}<div class="sub">${esc(i.sub)}</div></div>
+      <div class="num">${i.weight}<small> g</small></div>
+      <div>${i.avail? '<span class="pill in">Available</span>' : `<span class="pill out">Out</span>${i.due? `<div class="sub">Back ${esc(fmtDate(i.due))}</div>`:""}`}</div>
+      <div><button class="btn ${on?"on":""}" data-id="${esc(i.id)}" ${!i.avail&&!on?"disabled":""}>${on?"Remove":i.avail?"Add to loadout":"Unavailable"}</button></div>
+    </div>
+    <div class="detail" ${open?"":"hidden"}>
+      <div class="photos"><img class="main" src="${esc(i.photos[0])}" alt="${esc(i.item)}">${more}</div>
+      <dl class="specs">${spec}</dl>
+    </div></li>`}).join("");
+  const head = $("rows").querySelector(".head").outerHTML;
+  $("rows").innerHTML = head + (rows || `<li class="empty">No gear matches those filters. Clear the search or switch category.</li>`);
+  renderLoadout();
+}
+function renderLoadout(){
+  const picked = state.items.filter(i=>state.loadout.has(i.id));
+  const total = picked.reduce((n,i)=>n+i.weight,0);
+  const limit = Number($("limit").value)||1;
+  $("count").textContent = picked.length ? `${picked.length} item${picked.length>1?"s":""}` : "Nothing added yet";
+  $("tray").innerHTML = picked.map(i=>`<li><span>${esc(i.item)}</span><span>${i.weight} g <button data-rm="${esc(i.id)}" aria-label="Remove ${esc(i.item)}">✕</button></span></li>`).join("");
+  $("total").textContent = total.toLocaleString()+" g";
+  $("bar").classList.toggle("over", total>limit);
+  $("bar").firstElementChild.style.width = Math.min(100,total/limit*100)+"%";
+  const a = $("reserve");
+  if(!picked.length){ a.setAttribute("aria-disabled","true"); a.style.opacity=.5; a.removeAttribute("href"); return; }
+  a.removeAttribute("aria-disabled"); a.style.opacity=1;
+  const body = "Items requested:\n"+picked.map(i=>`- ${i.id}: ${i.item} (${i.weight} g)`).join("\n")+`\n\nTotal: ${total} g\nPickup date:`;
+  a.href = `https://github.com/${REPO}/issues/new?title=${encodeURIComponent("Reservation request")}&body=${encodeURIComponent(body)}`;
+  a.target = "_blank"; a.rel = "noopener";
+}
+const flip = (set,id) => set.has(id) ? set.delete(id) : set.add(id);
+
+$("q").addEventListener("input",e=>{state.q=e.target.value;render()});
+$("sort").addEventListener("change",e=>{state.sort=e.target.value;render()});
+$("sub").addEventListener("change",e=>{state.sub=e.target.value;render()});
+$("avail").addEventListener("change",e=>{state.avail=e.target.checked;render()});
+$("limit").addEventListener("input",renderLoadout);
+$("chips").addEventListener("click",e=>{const b=e.target.closest("[data-cat]"); if(!b)return; state.cat=b.dataset.cat; state.sub=""; buildFilters(); render();});
+$("rows").addEventListener("click",e=>{
+  const add=e.target.closest("[data-id]"), op=e.target.closest("[data-open]"), sw=e.target.closest("[data-swap]");
+  if(add&&!add.disabled){ flip(state.loadout,add.dataset.id); render(); }
+  else if(op){ flip(state.open,op.dataset.open); render(); }
+  else if(sw){ const m=sw.closest(".photos").querySelector(".main"); m.removeAttribute("data-fb"); m.src=sw.dataset.swap; }
+});
+$("tray").addEventListener("click",e=>{const b=e.target.closest("[data-rm]"); if(b){ flip(state.loadout,b.dataset.rm); render(); }});
+$("reserve").addEventListener("click",e=>{ if($("reserve").getAttribute("aria-disabled")) e.preventDefault(); });
+// Any image that fails to load (missing file, bad URL) gets the placeholder
+document.addEventListener("error",e=>{ const t=e.target; if(t.tagName==="IMG"&&!t.dataset.fb){ t.dataset.fb="1"; t.src=PH; } },true);
+load();
+</script>
+</body>
+</html>
