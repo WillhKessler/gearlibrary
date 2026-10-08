@@ -151,13 +151,20 @@ code{font-size:.85em;background:var(--panel);padding:1px 5px;border-radius:3px}
 // ---- Configuration: change these for your repo ----
 // Primary source: a Google Sheet. Share it as "Anyone with the link can view", then paste its ID
 // (the long string in the sheet URL between /d/ and /edit) and the name of the tab to read.
-const SHEET_ID  = "1oEgN2sb9GXCfPA3CekSbCLOMXHhFhyfJ8UDudxoBPEI";                      // e.g. "1AbC...xyz"
+const SHEET_ID  = "";                      // e.g. "1AbC...xyz"
 const SHEET_TAB = "Gear";                  // tab name
 // Optional: instead of the two lines above, use File > Share > Publish to web > CSV and paste that link here.
 const SHEET_CSV_URL = "";
 // Backup source if the Google Sheet is unset or unreachable: an .xlsx file in this repo.
 const XLSX_PATH = "gear.xlsx";
-const REPO = "your-org/gear-library";      // used for the reservation issue link
+// Reservation requests open a prefilled Google Form. Set it up like this:
+// 1. Create a form with a long-answer question for the items (plus name, contact, pickup date, anything else you need).
+// 2. In the form, open the three-dot menu > "Get pre-filled link", type any text into the items question
+//    (and the weight question, if you have one), click "Get link", and copy it.
+// 3. In that link, FORM_URL is everything before "?", and each entry.NNNNNNN is a question ID.
+const FORM_URL = "";                       // e.g. "https://docs.google.com/forms/d/e/1FAIpQLS.../viewform"
+const FORM_ITEMS_ENTRY = "";               // e.g. "entry.1234567890" (the items question)
+const FORM_WEIGHT_ENTRY = "";              // optional, e.g. "entry.987654321" (total weight question)
 const PH = "data:image/svg+xml," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 60"><rect width="80" height="60" fill="#c5cfc9"/><path d="M0 50l22-26 14 16 10-12 34 22z" fill="#9fb0a8"/><circle cx="60" cy="16" r="6" fill="#e8edea"/></svg>');
 
 // ---- Sample data (mirrors the spreadsheet columns); used when gear.xlsx can't be loaded ----
@@ -292,8 +299,14 @@ function renderLoadout(){
   const a = $("reserve");
   if(!picked.length){ a.setAttribute("aria-disabled","true"); a.style.opacity=.5; a.removeAttribute("href"); return; }
   a.removeAttribute("aria-disabled"); a.style.opacity=1;
-  const body = "Items requested:\n"+picked.map(i=>`- ${i.id}: ${i.item} (${i.weight} g)`).join("\n")+`\n\nTotal: ${total} g\nPickup date:`;
-  a.href = `https://github.com/${REPO}/issues/new?title=${encodeURIComponent("Reservation request")}&body=${encodeURIComponent(body)}`;
+  const note = $("formnote");
+  note.hidden = !!FORM_URL;
+  if(!FORM_URL){ a.setAttribute("aria-disabled","true"); a.style.opacity=.5; a.removeAttribute("href"); return; }
+  const list = picked.map(i=>`${i.id}: ${i.item} (${i.weight} g)`).join("\n");
+  const q = new URLSearchParams({usp:"pp_url"});
+  if(FORM_ITEMS_ENTRY) q.set(FORM_ITEMS_ENTRY, list);
+  if(FORM_WEIGHT_ENTRY) q.set(FORM_WEIGHT_ENTRY, total+" g");
+  a.href = FORM_URL + "?" + q.toString();
   a.target = "_blank"; a.rel = "noopener";
 }
 const flip = (set,id) => set.has(id) ? set.delete(id) : set.add(id);
