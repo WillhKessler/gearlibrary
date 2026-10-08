@@ -73,6 +73,11 @@ button:focus-visible{outline:3px solid var(--tape);outline-offset:2px}
 .swap img{width:56px;height:42px;object-fit:cover;border-radius:4px;border:1px solid var(--line);display:block}
 .specs{display:grid;grid-template-columns:max-content 1fr;gap:6px 16px;margin:0;font-size:.92rem;align-content:start}
 .specs dt{color:var(--muted)}.specs dd{margin:0}
+.req label{display:block;font-size:.85rem;color:var(--muted);margin-top:10px}
+.req input,.req textarea{display:block;width:100%;font:inherit;color:var(--ink);background:var(--fog);border:1.5px solid var(--line);border-radius:6px;padding:7px 10px;margin-top:3px}
+.req .two{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.req .btn{border:0}
+#formmsg{margin:10px 0 0}
 .empty{padding:40px 8px;color:var(--muted)}
 aside{position:sticky;top:16px;background:var(--panel);border:1.5px solid var(--ink);border-radius:10px;padding:18px}
 aside h2{font:800 1.4rem/1 var(--display);margin:0 0 4px}
@@ -107,7 +112,7 @@ code{font-size:.85em;background:var(--panel);padding:1px 5px;border-radius:3px}
 <header><div class="wrap">
   <div class="top">
     <h1 class="brand">Ridgeline<span>Gear Library</span></h1>
-    <p class="intro">Borrow bikepacking gear for a week, free for members. Build a loadout, check the weight, then send a reservation request.</p>
+    <p class="intro">Borrow bikepacking gear for an hour, a day, a week, or longer. Build your loadout, check the weight, then send a reservation request. Library loans are free and open to everyone. </p>
   </div>
   <div class="stats" id="stats" aria-live="polite"></div>
 </div></header>
@@ -138,8 +143,17 @@ code{font-size:.85em;background:var(--panel);padding:1px 5px;border-radius:3px}
     <div class="total" id="total">0 g</div>
     <div class="bar" id="bar" role="img" aria-label="Weight against your limit"><i></i></div>
     <label class="limit">Weight limit <input type="number" id="limit" value="6000" min="500" step="250"> g</label>
-    <a class="btn" id="reserve" href="#" aria-disabled="true">Request these items</a>
-    <p class="sub" id="formnote" hidden>Requests are switched off until FORM_URL is set in the page script.</p>
+    <form class="req" id="req">
+      <label>Your name<input id="f-name" required autocomplete="name"></label>
+      <label>Email<input id="f-email" type="email" required autocomplete="email"></label>
+      <div class="two">
+        <label>Pickup date<input id="f-pickup" type="date" required></label>
+        <label>Return date<input id="f-return" type="date" required></label>
+      </div>
+      <label>Notes (optional)<textarea id="f-notes" rows="2" placeholder="Trip details, questions"></textarea></label>
+      <button class="btn" id="send" type="submit" disabled>Submit request</button>
+      <p class="sub" id="formmsg" role="status" aria-live="polite"></p>
+    </form>
   </aside>
 </main></div>
 
@@ -151,20 +165,28 @@ code{font-size:.85em;background:var(--panel);padding:1px 5px;border-radius:3px}
 // ---- Configuration: change these for your repo ----
 // Primary source: a Google Sheet. Share it as "Anyone with the link can view", then paste its ID
 // (the long string in the sheet URL between /d/ and /edit) and the name of the tab to read.
-const SHEET_ID  = "1oEgN2sb9GXCfPA3CekSbCLOMXHhFhyfJ8UDudxoBPEI";                      // e.g. "1AbC...xyz"
+const SHEET_ID  = "";                      // e.g. "1AbC...xyz"
 const SHEET_TAB = "Gear";                  // tab name
 // Optional: instead of the two lines above, use File > Share > Publish to web > CSV and paste that link here.
 const SHEET_CSV_URL = "";
 // Backup source if the Google Sheet is unset or unreachable: an .xlsx file in this repo.
 const XLSX_PATH = "gear.xlsx";
-// Reservation requests open a prefilled Google Form. Set it up like this:
-// 1. Create a form with a long-answer question for the items (plus name, contact, pickup date, anything else you need).
-// 2. In the form, open the three-dot menu > "Get pre-filled link", type any text into the items question
-//    (and the weight question, if you have one), click "Get link", and copy it.
-// 3. In that link, FORM_URL is everything before "?", and each entry.NNNNNNN is a question ID.
-const FORM_URL = "";                       // e.g. "https://docs.google.com/forms/d/e/1FAIpQLS.../viewform"
-const FORM_ITEMS_ENTRY = "";               // e.g. "entry.1234567890" (the items question)
-const FORM_WEIGHT_ENTRY = "";              // optional, e.g. "entry.987654321" (total weight question)
+// Requests are submitted straight to a Google Form from the loadout panel. Set it up like this:
+// 1. Create the form with these questions: name (short answer), email (short answer), pickup date and return date
+//    (Date type), notes (paragraph), items (paragraph), total weight (short answer). Leave out any you don't want.
+// 2. Form settings: do NOT require sign-in, do NOT limit to one response, no file uploads.
+// 3. Three-dot menu > "Get pre-filled link": type any text in every question, click "Get link", copy it.
+// 4. FORM_URL is that link up to the "?". Each entry.NNNNNNN in it is a question ID; match them to the keys below.
+const FORM_URL = "https://docs.google.com/forms/d/e/1FAIpQLSdLaaAPUUULcrH_PYgf27nW-2nnlNACTBCneg5qE-EfBOqf_Q/viewform";                       // e.g. "https://docs.google.com/forms/d/e/1FAIpQLS.../viewform"
+const FORM_ENTRIES = {                     // fill in the IDs you have; blank ones are skipped
+  name:   "entry.144521721",                              // e.g. "entry.1111111111"
+  email:  "entry.245949958",
+  pickup: "entry.2136646118",                              // Date question
+  ret:    "entry.1132304307",                              // Date question (return date)
+  notes:  "entry.2141839821",
+  items:  "entry.2061083159",
+  weight: "entry.2038391140"
+};
 const PH = "data:image/svg+xml," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 60"><rect width="80" height="60" fill="#c5cfc9"/><path d="M0 50l22-26 14 16 10-12 34 22z" fill="#9fb0a8"/><circle cx="60" cy="16" r="6" fill="#e8edea"/></svg>');
 
 // ---- Sample data (mirrors the spreadsheet columns); used when gear.xlsx can't be loaded ----
@@ -296,18 +318,7 @@ function renderLoadout(){
   $("total").textContent = total.toLocaleString()+" g";
   $("bar").classList.toggle("over", total>limit);
   $("bar").firstElementChild.style.width = Math.min(100,total/limit*100)+"%";
-  const a = $("reserve");
-  if(!picked.length){ a.setAttribute("aria-disabled","true"); a.style.opacity=.5; a.removeAttribute("href"); return; }
-  a.removeAttribute("aria-disabled"); a.style.opacity=1;
-  const note = $("formnote");
-  note.hidden = !!FORM_URL;
-  if(!FORM_URL){ a.setAttribute("aria-disabled","true"); a.style.opacity=.5; a.removeAttribute("href"); return; }
-  const list = picked.map(i=>`${i.id}: ${i.item} (${i.weight} g)`).join("\n");
-  const q = new URLSearchParams({usp:"pp_url"});
-  if(FORM_ITEMS_ENTRY) q.set(FORM_ITEMS_ENTRY, list);
-  if(FORM_WEIGHT_ENTRY) q.set(FORM_WEIGHT_ENTRY, total+" g");
-  a.href = FORM_URL + "?" + q.toString();
-  a.target = "_blank"; a.rel = "noopener";
+  $("send").disabled = !picked.length;
 }
 const flip = (set,id) => set.has(id) ? set.delete(id) : set.add(id);
 
@@ -324,7 +335,40 @@ $("rows").addEventListener("click",e=>{
   else if(sw){ const m=sw.closest(".photos").querySelector(".main"); m.removeAttribute("data-fb"); m.src=sw.dataset.swap; }
 });
 $("tray").addEventListener("click",e=>{const b=e.target.closest("[data-rm]"); if(b){ flip(state.loadout,b.dataset.rm); render(); }});
-$("reserve").addEventListener("click",e=>{ if($("reserve").getAttribute("aria-disabled")) e.preventDefault(); });
+const today = new Date(Date.now()-new Date().getTimezoneOffset()*60000).toISOString().slice(0,10);
+$("f-pickup").min = today; $("f-return").min = today;
+$("f-pickup").addEventListener("change",e=>{ $("f-return").min = e.target.value || today; });
+
+function formPayload(picked, iso){
+  const E = FORM_ENTRIES, d = new URLSearchParams();
+  const put = (k,v)=>{ if(E[k] && v) d.set(E[k], v); };
+  const date = (k,v)=>{ if(!E[k]||!v) return; if(iso) d.set(E[k],v); else { const [y,m,dd]=v.split("-"); d.set(E[k]+"_year",y); d.set(E[k]+"_month",+m); d.set(E[k]+"_day",+dd); } };
+  put("name",$("f-name").value.trim()); put("email",$("f-email").value.trim());
+  date("pickup",$("f-pickup").value); date("ret",$("f-return").value);
+  put("notes",$("f-notes").value.trim());
+  put("items",picked.map(i=>`${i.id}: ${i.item} (${i.weight} g)`).join("\n"));
+  put("weight",picked.reduce((n,i)=>n+i.weight,0)+" g");
+  return d;
+}
+$("req").addEventListener("submit", async e=>{
+  e.preventDefault();
+  const msg = $("formmsg"), btn = $("send");
+  const picked = state.items.filter(i=>state.loadout.has(i.id));
+  if(!FORM_URL){ msg.textContent = "Requests are switched off until FORM_URL is set in the page script."; return; }
+  if(!picked.length){ msg.textContent = "Add at least one item first."; return; }
+  if($("f-return").value < $("f-pickup").value){ msg.textContent = "Return date must be on or after the pickup date."; return; }
+  btn.disabled = true; msg.textContent = "Sending…";
+  try{
+    // A static page can't read Google's reply (no-cors), so "sent" means the request left the browser.
+    await fetch(FORM_URL.replace(/\/viewform.*$/,"/formResponse"), {method:"POST", mode:"no-cors", body:formPayload(picked,false)});
+    msg.textContent = "Request sent. We'll email you to confirm.";
+    state.loadout.clear(); $("req").reset(); render();
+  }catch(err){
+    const link = FORM_URL + "?usp=pp_url&" + formPayload(picked,true).toString();
+    msg.innerHTML = `Couldn't send. <a href="${esc(link)}" target="_blank" rel="noopener">Open the form instead</a>`;
+    btn.disabled = false;
+  }
+});
 // Any image that fails to load (missing file, bad URL) gets the placeholder
 document.addEventListener("error",e=>{ const t=e.target; if(t.tagName==="IMG"&&!t.dataset.fb){ t.dataset.fb="1"; t.src=PH; } },true);
 load();
